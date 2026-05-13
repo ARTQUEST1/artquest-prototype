@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+<title>ARTQUEST</title>
+
+<style>
+
+body{
+margin:0;
+background:black;
+overflow:hidden;
+font-family:Arial;
+touch-action:none;
+}
+
+h1{
+color:red;
+text-align:center;
+margin-top:40px;
+font-size:48px;
+}
+
+#player{
+width:40px;
+height:40px;
+background:red;
+position:absolute;
+top:300px;
+left:300px;
+border-radius:10px;
+box-shadow:0 0 20px red;
+}
+
+</style>
+</head>
+
+<body>
+
+<h1>ARTQUEST</h1>
+
+<div id="player"></div>
+
+<script>
+
+let player = document.getElementById("player");
+
+let x = 300;
+let y = 300;
+
+document.addEventListener("keydown", function(e){
+
+if(e.key=="ArrowRight"){ x += 10; }
+if(e.key=="ArrowLeft"){ x -= 10; }
+if(e.key=="ArrowUp"){ y -= 10; }
+if(e.key=="ArrowDown"){ y += 10; }
+
+player.style.left = x + "px";
+player.style.top = y + "px";
+
+});
+
+let touchStartX = 0;
+let touchStartY = 0;
+
+document.addEventListener("touchstart", function(e){
+
+touchStartX = e.touches[0].clientX;
+touchStartY = e.touches[0].clientY;
+
+});
+
+document.addEventListener("touchmove", function(e){
+
+let touchEndX = e.touches[0].clientX;
+let touchEndY = e.touches[0].clientY;
+
+let dx = touchEndX - touchStartX;
+let dy = touchEndY - touchStartY;
+
+if(Math.abs(dx) > Math.abs(dy)){
+
+if(dx > 0){
+x += 5;
+}
+else{
+x -= 5;
+}
+
+}
+else{
+
+if(dy > 0){
+y += 5;
+}
+else{
+y -= 5;
+}
+
+}
+
+player.style.left = x + "px";
+player.style.top = y + "px";
+
+touchStartX = touchEndX;
+touchStartY = touchEndY;
+
+});
+
+</script>
+
+</body>
+</html>
