@@ -1,35 +1,25 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-<title>ARTQUEST</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>ARTQUEST — Eggs in Paris</title>
+
+<script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.js"></script>
 
 <style>
 
 body{
-margin:0;
-background:black;
-overflow:hidden;
-font-family:Arial;
-touch-action:none;
+    margin:0;
+    overflow:hidden;
+    background:black;
+    font-family:Arial, sans-serif;
 }
 
-h1{
-color:red;
-text-align:center;
-margin-top:40px;
-font-size:48px;
-}
-
-#player{
-width:40px;
-height:40px;
-background:red;
-position:absolute;
-top:300px;
-left:300px;
-border-radius:10px;
-box-shadow:0 0 20px red;
+canvas{
+    display:block;
+    margin:auto;
 }
 
 </style>
@@ -37,75 +27,360 @@ box-shadow:0 0 20px red;
 
 <body>
 
-<h1>ARTQUEST</h1>
-
-<div id="player"></div>
-
 <script>
 
-let player = document.getElementById("player");
+const config = {
+    type: Phaser.AUTO,
+    width: window.innerWidth,
+    height: window.innerHeight,
+    backgroundColor: '#000000',
 
-let x = 300;
-let y = 300;
+    physics: {
+        default: 'arcade',
+        arcade: {
+            debug:false
+        }
+    },
 
-document.addEventListener("keydown", function(e){
+    scene: {
+        preload: preload,
+        create: create,
+        update: update
+    }
+};
 
-if(e.key=="ArrowRight"){ x += 10; }
-if(e.key=="ArrowLeft"){ x -= 10; }
-if(e.key=="ArrowUp"){ y -= 10; }
-if(e.key=="ArrowDown"){ y += 10; }
+const game = new Phaser.Game(config);
 
-player.style.left = x + "px";
-player.style.top = y + "px";
+let ostrich;
+let cursors;
+let eggs;
+let rats;
+let bullets;
 
-});
+let score = 0;
+let scoreText;
 
-let touchStartX = 0;
-let touchStartY = 0;
-
-document.addEventListener("touchstart", function(e){
-
-touchStartX = e.touches[0].clientX;
-touchStartY = e.touches[0].clientY;
-
-});
-
-document.addEventListener("touchmove", function(e){
-
-let touchEndX = e.touches[0].clientX;
-let touchEndY = e.touches[0].clientY;
-
-let dx = touchEndX - touchStartX;
-let dy = touchEndY - touchStartY;
-
-if(Math.abs(dx) > Math.abs(dy)){
-
-if(dx > 0){
-x += 5;
-}
-else{
-x -= 5;
-}
-
-}
-else{
-
-if(dy > 0){
-y += 5;
-}
-else{
-y -= 5;
-}
+function preload(){
 
 }
 
-player.style.left = x + "px";
-player.style.top = y + "px";
+function create(){
 
-touchStartX = touchEndX;
-touchStartY = touchEndY;
+    const width = this.scale.width;
+    const height = this.scale.height;
 
-});
+    // BACKGROUND
+
+    this.add.rectangle(width/2,height/2,width,height,0x000000);
+
+    // PARIS LIGHTS
+
+    for(let i=0;i<80;i++){
+
+        this.add.circle(
+            Phaser.Math.Between(0,width),
+            Phaser.Math.Between(0,height),
+            Phaser.Math.Between(1,3),
+            0xffcc66,
+            0.7
+        );
+
+    }
+
+    // TITLE
+
+    this.add.text(
+        width/2,
+        40,
+        'ARTQUEST\nEGGS IN PARIS',
+        {
+            fontSize:'42px',
+            fill:'#ff2222',
+            align:'center',
+            fontStyle:'bold'
+        }
+    ).setOrigin(0.5);
+
+    // EIFFEL TOWER STYLE SHAPE
+
+    const tower = this.add.graphics();
+
+    tower.lineStyle(6,0xff3333);
+
+    tower.beginPath();
+
+    tower.moveTo(width-180,height-100);
+    tower.lineTo(width-120,150);
+    tower.lineTo(width-60,height-100);
+
+    tower.strokePath();
+
+    // OSTRICH
+
+    ostrich = this.add.rectangle(200,height/2,60,90,0xffffff);
+
+    this.physics.add.existing(ostrich);
+
+    ostrich.body.setCollideWorldBounds(true);
+
+    // OSTRICH TEXT
+
+    this.add.text(
+        ostrich.x-35,
+        ostrich.y-80,
+        'OSTRICH',
+        {
+            fontSize:'16px',
+            fill:'#ffffff'
+        }
+    );
+
+    // RATS GROUP
+
+    rats = this.physics.add.group();
+
+    for(let i=0;i<5;i++){
+
+        let rat = rats.create(
+            700 + (i*45),
+            350,
+            null
+        );
+
+        rat.setDisplaySize(35,35);
+
+        rat.body.setSize(35,35);
+
+        rat.fillColor = 0xff0000;
+
+    }
+
+    rats.children.iterate(function(rat){
+
+        rat.body.setVelocity(
+            Phaser.Math.Between(-60,60),
+            Phaser.Math.Between(-60,60)
+        );
+
+        rat.body.setBounce(1);
+
+        rat.body.setCollideWorldBounds(true);
+
+    });
+
+    // DRAW RATS
+
+    rats.children.iterate(function(rat){
+
+        rat.graphics = game.scene.scenes[0].add.circle(
+            rat.x,
+            rat.y,
+            18,
+            0xff0000
+        );
+
+    });
+
+    // EGGS
+
+    eggs = this.physics.add.group();
+
+    for(let i=0;i<10;i++){
+
+        let egg = eggs.create(
+            Phaser.Math.Between(150,width-150),
+            Phaser.Math.Between(150,height-150),
+            null
+        );
+
+        egg.setDisplaySize(25,35);
+
+        egg.body.setSize(25,35);
+
+        egg.graphics = this.add.ellipse(
+            egg.x,
+            egg.y,
+            25,
+            35,
+            0xfff2cc
+        );
+
+    }
+
+    // BULLETS
+
+    bullets = this.physics.add.group();
+
+    // SCORE
+
+    scoreText = this.add.text(
+        30,
+        30,
+        'SCORE: 0',
+        {
+            fontSize:'28px',
+            fill:'#ffffff'
+        }
+    );
+
+    // CONTROLS
+
+    cursors = this.input.keyboard.createCursorKeys();
+
+    // SHOOT
+
+    this.input.keyboard.on('keydown-SPACE',()=>{
+
+        let bullet = bullets.create(
+            ostrich.x,
+            ostrich.y,
+            null
+        );
+
+        bullet.setDisplaySize(12,12);
+
+        bullet.body.setSize(12,12);
+
+        bullet.body.setVelocityX(500);
+
+        bullet.graphics = this.add.circle(
+            bullet.x,
+            bullet.y,
+            6,
+            0xffff00
+        );
+
+    });
+
+    // COLLISIONS
+
+    this.physics.add.overlap(
+        ostrich,
+        eggs,
+        collectEgg,
+        null,
+        this
+    );
+
+    this.physics.add.overlap(
+        bullets,
+        rats,
+        shootRat,
+        null,
+        this
+    );
+
+}
+
+function update(){
+
+    // OSTRICH MOVEMENT
+
+    ostrich.body.setVelocity(0);
+
+    if(cursors.left.isDown){
+
+        ostrich.body.setVelocityX(-250);
+
+    }
+
+    if(cursors.right.isDown){
+
+        ostrich.body.setVelocityX(250);
+
+    }
+
+    if(cursors.up.isDown){
+
+        ostrich.body.setVelocityY(-250);
+
+    }
+
+    if(cursors.down.isDown){
+
+        ostrich.body.setVelocityY(250);
+
+    }
+
+    // UPDATE RAT GRAPHICS
+
+    rats.children.iterate(function(rat){
+
+        if(rat.graphics){
+
+            rat.graphics.x = rat.x;
+            rat.graphics.y = rat.y;
+
+        }
+
+    });
+
+    // UPDATE EGG GRAPHICS
+
+    eggs.children.iterate(function(egg){
+
+        if(egg.graphics){
+
+            egg.graphics.x = egg.x;
+            egg.graphics.y = egg.y;
+
+        }
+
+    });
+
+    // UPDATE BULLETS
+
+    bullets.children.iterate(function(bullet){
+
+        if(!bullet.graphics){
+
+            bullet.graphics = game.scene.scenes[0].add.circle(
+                bullet.x,
+                bullet.y,
+                6,
+                0xffff00
+            );
+
+        }
+
+        bullet.graphics.x = bullet.x;
+        bullet.graphics.y = bullet.y;
+
+    });
+
+}
+
+function collectEgg(ostrich,egg){
+
+    score += 10;
+
+    scoreText.setText('SCORE: ' + score);
+
+    egg.graphics.destroy();
+
+    egg.destroy();
+
+}
+
+function shootRat(bullet,rat){
+
+    score += 25;
+
+    scoreText.setText('SCORE: ' + score);
+
+    if(rat.graphics){
+
+        rat.graphics.destroy();
+
+    }
+
+    bullet.graphics.destroy();
+
+    bullet.destroy();
+
+    rat.destroy();
+
+}
 
 </script>
 
