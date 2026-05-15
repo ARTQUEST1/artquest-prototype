@@ -1,388 +1,415 @@
+Да. Сейчас сделаем v2 — намного красивее.
+
+Она будет выглядеть так:
+
+* ночной Париж в стиле арт-деко
+* золотые огни
+* красно-золотая Эйфелева башня
+* Страус как белый персонаж с шеей, головой и ногами
+* крысы как маленькая красная банда
+* яйца разных цветов
+* кнопка SHOOT
+* управление пальцем: нажал на экран — Страус идёт туда
+* выстрел — кнопкой справа снизу
+
+Полностью сотри старый код и вставь этот:
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>ARTQUEST — Eggs in Paris</title>
-
 <script src="https://cdn.jsdelivr.net/npm/phaser@3.70.0/dist/phaser.js"></script>
-
 <style>
-
-body{
+html, body{
     margin:0;
+    padding:0;
     overflow:hidden;
-    background:black;
+    background:#050000;
+    touch-action:none;
     font-family:Arial, sans-serif;
 }
-
 canvas{
     display:block;
-    margin:auto;
 }
-
 </style>
 </head>
-
 <body>
-
 <script>
-
 const config = {
     type: Phaser.AUTO,
     width: window.innerWidth,
     height: window.innerHeight,
-    backgroundColor: '#000000',
-
+    backgroundColor: '#050000',
     physics: {
         default: 'arcade',
         arcade: {
-            debug:false
+            debug: false
         }
     },
-
     scene: {
         preload: preload,
         create: create,
         update: update
     }
 };
-
 const game = new Phaser.Game(config);
-
 let ostrich;
-let cursors;
-let eggs;
 let rats;
+let eggs;
 let bullets;
-
+let cursors;
+let targetX = null;
+let targetY = null;
 let score = 0;
 let scoreText;
-
-function preload(){
-
-}
-
+let missionText;
+let shootButton;
+let shootText;
+let lastShot = 0;
+function preload(){}
 function create(){
-
-    const width = this.scale.width;
-    const height = this.scale.height;
-
-    // BACKGROUND
-
-    this.add.rectangle(width/2,height/2,width,height,0x000000);
-
-    // PARIS LIGHTS
-
-    for(let i=0;i<80;i++){
-
-        this.add.circle(
-            Phaser.Math.Between(0,width),
-            Phaser.Math.Between(0,height),
-            Phaser.Math.Between(1,3),
-            0xffcc66,
-            0.7
-        );
-
-    }
-
-    // TITLE
-
-    this.add.text(
-        width/2,
-        40,
-        'ARTQUEST\nEGGS IN PARIS',
-        {
-            fontSize:'42px',
-            fill:'#ff2222',
-            align:'center',
-            fontStyle:'bold'
-        }
-    ).setOrigin(0.5);
-
-    // EIFFEL TOWER STYLE SHAPE
-
-    const tower = this.add.graphics();
-
-    tower.lineStyle(6,0xff3333);
-
-    tower.beginPath();
-
-    tower.moveTo(width-180,height-100);
-    tower.lineTo(width-120,150);
-    tower.lineTo(width-60,height-100);
-
-    tower.strokePath();
-
-    // OSTRICH
-
-    ostrich = this.add.rectangle(200,height/2,60,90,0xffffff);
-
-    this.physics.add.existing(ostrich);
-
-    ostrich.body.setCollideWorldBounds(true);
-
-    // OSTRICH TEXT
-
-    this.add.text(
-        ostrich.x-35,
-        ostrich.y-80,
-        'OSTRICH',
-        {
-            fontSize:'16px',
-            fill:'#ffffff'
-        }
-    );
-
-    // RATS GROUP
-
-    rats = this.physics.add.group();
-
-    for(let i=0;i<5;i++){
-
-        let rat = rats.create(
-            700 + (i*45),
-            350,
-            null
-        );
-
-        rat.setDisplaySize(35,35);
-
-        rat.body.setSize(35,35);
-
-        rat.fillColor = 0xff0000;
-
-    }
-
-    rats.children.iterate(function(rat){
-
-        rat.body.setVelocity(
-            Phaser.Math.Between(-60,60),
-            Phaser.Math.Between(-60,60)
-        );
-
-        rat.body.setBounce(1);
-
-        rat.body.setCollideWorldBounds(true);
-
+    const w = this.scale.width;
+    const h = this.scale.height;
+    createTextures.call(this);
+    createBackground.call(this,w,h);
+    this.add.text(w/2, 42, 'ARTQUEST', {
+        fontSize:'42px',
+        color:'#ff2a1f',
+        fontStyle:'bold',
+        fontFamily:'Georgia'
+    }).setOrigin(0.5);
+    this.add.text(w/2, 90, 'EGGS IN PARIS', {
+        fontSize:'34px',
+        color:'#ffcc66',
+        fontStyle:'bold',
+        fontFamily:'Georgia'
+    }).setOrigin(0.5);
+    missionText = this.add.text(w/2, 132, 'Find the eggs. Escape the Rat Gang.', {
+        fontSize:'18px',
+        color:'#fff2cc',
+        fontFamily:'Arial'
+    }).setOrigin(0.5);
+    scoreText = this.add.text(24, 24, 'SCORE: 0', {
+        fontSize:'28px',
+        color:'#ffffff',
+        fontStyle:'bold',
+        fontFamily:'Georgia'
     });
-
-    // DRAW RATS
-
-    rats.children.iterate(function(rat){
-
-        rat.graphics = game.scene.scenes[0].add.circle(
-            rat.x,
-            rat.y,
-            18,
-            0xff0000
-        );
-
-    });
-
-    // EGGS
-
+    ostrich = this.physics.add.sprite(160, h/2, 'ostrich');
+    ostrich.setScale(0.75);
+    ostrich.setCollideWorldBounds(true);
+    ostrich.body.setSize(60,90);
     eggs = this.physics.add.group();
-
-    for(let i=0;i<10;i++){
-
-        let egg = eggs.create(
-            Phaser.Math.Between(150,width-150),
-            Phaser.Math.Between(150,height-150),
-            null
-        );
-
-        egg.setDisplaySize(25,35);
-
-        egg.body.setSize(25,35);
-
-        egg.graphics = this.add.ellipse(
-            egg.x,
-            egg.y,
-            25,
-            35,
-            0xfff2cc
-        );
-
-    }
-
-    // BULLETS
-
+    createEggs.call(this,w,h);
+    rats = this.physics.add.group();
+    createRatGang.call(this,w,h);
     bullets = this.physics.add.group();
-
-    // SCORE
-
-    scoreText = this.add.text(
-        30,
-        30,
-        'SCORE: 0',
-        {
-            fontSize:'28px',
-            fill:'#ffffff'
+    this.physics.add.overlap(ostrich, eggs, collectEgg, null, this);
+    this.physics.add.overlap(rats, eggs, ratEatEgg, null, this);
+    this.physics.add.overlap(bullets, rats, shootRat, null, this);
+    createShootButton.call(this,w,h);
+    this.input.on('pointerdown', function(pointer){
+        if(pointer.x > w - 170 && pointer.y > h - 130){
+            shoot.call(this);
+            return;
         }
-    );
-
-    // CONTROLS
-
+        targetX = pointer.x;
+        targetY = pointer.y;
+    }, this);
+    this.input.on('pointermove', function(pointer){
+        if(pointer.isDown){
+            if(pointer.x > w - 170 && pointer.y > h - 130){
+                return;
+            }
+            targetX = pointer.x;
+            targetY = pointer.y;
+        }
+    }, this);
     cursors = this.input.keyboard.createCursorKeys();
-
-    // SHOOT
-
-    this.input.keyboard.on('keydown-SPACE',()=>{
-
-        let bullet = bullets.create(
-            ostrich.x,
-            ostrich.y,
-            null
-        );
-
-        bullet.setDisplaySize(12,12);
-
-        bullet.body.setSize(12,12);
-
-        bullet.body.setVelocityX(500);
-
-        bullet.graphics = this.add.circle(
-            bullet.x,
-            bullet.y,
-            6,
-            0xffff00
-        );
-
-    });
-
-    // COLLISIONS
-
-    this.physics.add.overlap(
-        ostrich,
-        eggs,
-        collectEgg,
-        null,
-        this
-    );
-
-    this.physics.add.overlap(
-        bullets,
-        rats,
-        shootRat,
-        null,
-        this
-    );
-
+    this.input.keyboard.on('keydown-SPACE', function(){
+        shoot.call(this);
+    }, this);
 }
-
-function update(){
-
-    // OSTRICH MOVEMENT
-
+function update(time){
+    moveOstrich.call(this);
+    moveRats.call(this);
+    updateBullets.call(this);
+}
+function createTextures(){
+    let g = this.add.graphics();
+    g.clear();
+    g.fillStyle(0xffffff,1);
+    g.fillEllipse(42,65,58,80);
+    g.fillRect(36,18,14,58);
+    g.fillEllipse(43,18,36,32);
+    g.fillStyle(0x111111,1);
+    g.fillCircle(35,15,4);
+    g.fillCircle(51,15,4);
+    g.fillStyle(0xffcc66,1);
+    g.fillTriangle(42,20,72,26,42,32);
+    g.lineStyle(5,0xffffff,1);
+    g.lineBetween(30,102,18,126);
+    g.lineBetween(52,102,64,126);
+    g.generateTexture('ostrich',84,132);
+    g.clear();
+    g.fillStyle(0x8b0000,1);
+    g.fillEllipse(30,30,48,35);
+    g.fillStyle(0xff3333,1);
+    g.fillCircle(13,18,10);
+    g.fillCircle(47,18,10);
+    g.fillStyle(0xffc0c0,1);
+    g.fillCircle(13,18,5);
+    g.fillCircle(47,18,5);
+    g.fillStyle(0x111111,1);
+    g.fillCircle(23,27,4);
+    g.fillCircle(37,27,4);
+    g.lineStyle(3,0xffcc66,1);
+    g.lineBetween(12,39,0,48);
+    g.lineBetween(48,39,60,48);
+    g.generateTexture('rat',60,55);
+    g.clear();
+    g.fillStyle(0xfff2cc,1);
+    g.fillEllipse(18,22,28,40);
+    g.lineStyle(3,0xffcc66,1);
+    g.strokeEllipse(18,22,28,40);
+    g.generateTexture('egg_gold',36,44);
+    g.clear();
+    g.fillStyle(0xf7f7ff,1);
+    g.fillEllipse(18,22,26,38);
+    g.lineStyle(3,0xffffff,1);
+    g.strokeEllipse(18,22,26,38);
+    g.generateTexture('egg_white',36,44);
+    g.clear();
+    g.fillStyle(0x88ff88,1);
+    g.fillEllipse(18,22,28,40);
+    g.lineStyle(3,0x00ff66,1);
+    g.strokeEllipse(18,22,28,40);
+    g.generateTexture('egg_green',36,44);
+    g.clear();
+    g.fillStyle(0x552200,1);
+    g.fillEllipse(18,22,28,40);
+    g.lineStyle(3,0xff0000,1);
+    g.strokeEllipse(18,22,28,40);
+    g.generateTexture('egg_danger',36,44);
+    g.clear();
+    g.fillStyle(0xffff00,1);
+    g.fillCircle(8,8,8);
+    g.generateTexture('bullet',16,16);
+    g.clear();
+    g.destroy();
+}
+function createBackground(w,h){
+    let bg = this.add.graphics();
+    bg.fillStyle(0x050000,1);
+    bg.fillRect(0,0,w,h);
+    bg.fillStyle(0x160505,1);
+    bg.fillRect(0,h*0.72,w,h*0.28);
+    for(let i=0;i<120;i++){
+        bg.fillStyle(0xffcc66,Phaser.Math.FloatBetween(0.25,0.9));
+        bg.fillCircle(
+            Phaser.Math.Between(0,w),
+            Phaser.Math.Between(130,h-40),
+            Phaser.Math.Between(1,3)
+        );
+    }
+    bg.lineStyle(5,0xff2a1f,1);
+    let tx = w - 140;
+    let baseY = h - 95;
+    let topY = 190;
+    bg.beginPath();
+    bg.moveTo(tx-65,baseY);
+    bg.lineTo(tx,topY);
+    bg.lineTo(tx+65,baseY);
+    bg.strokePath();
+    bg.lineStyle(3,0xffcc66,0.8);
+    bg.lineBetween(tx-45,baseY-95,tx+45,baseY-95);
+    bg.lineBetween(tx-28,baseY-190,tx+28,baseY-190);
+    bg.lineStyle(3,0xffcc66,0.35);
+    for(let i=0;i<5;i++){
+        bg.strokeRect(20+i*8,150+i*8,w-40-i*16,h-190-i*16);
+    }
+    bg.fillStyle(0x090909,1);
+    for(let i=0;i<18;i++){
+        let bw = Phaser.Math.Between(30,70);
+        let bh = Phaser.Math.Between(60,180);
+        let bx = Phaser.Math.Between(0,w);
+        bg.fillRect(bx,h-95-bh,bw,bh);
+        bg.fillStyle(0xffcc66,0.6);
+        for(let j=0;j<4;j++){
+            bg.fillRect(bx+8+j*12,h-110-bh+20,5,8);
+        }
+        bg.fillStyle(0x090909,1);
+    }
+}
+function createEggs(w,h){
+    const types = ['egg_gold','egg_white','egg_green','egg_danger'];
+    for(let i=0;i<18;i++){
+        let type = Phaser.Utils.Array.GetRandom(types);
+        let egg = eggs.create(
+            Phaser.Math.Between(80,w-220),
+            Phaser.Math.Between(160,h-110),
+            type
+        );
+        egg.setScale(0.9);
+        egg.body.setCircle(14);
+        egg.eggType = type;
+        if(type === 'egg_danger'){
+            egg.points = -10;
+        } else if(type === 'egg_green'){
+            egg.points = 25;
+        } else if(type === 'egg_gold'){
+            egg.points = 50;
+        } else {
+            egg.points = 10;
+        }
+    }
+}
+function createRatGang(w,h){
+    for(let i=0;i<5;i++){
+        let rat = rats.create(
+            Phaser.Math.Between(w*0.45,w*0.78),
+            Phaser.Math.Between(180,h-150),
+            'rat'
+        );
+        rat.setScale(0.75);
+        rat.body.setCircle(22);
+        rat.speed = Phaser.Math.Between(70,120);
+    }
+}
+function createShootButton(w,h){
+    shootButton = this.add.graphics();
+    shootButton.fillStyle(0x8b0000,0.85);
+    shootButton.fillRoundedRect(w-165,h-105,135,70,18);
+    shootButton.lineStyle(4,0xffcc66,1);
+    shootButton.strokeRoundedRect(w-165,h-105,135,70,18);
+    shootText = this.add.text(w-98,h-70,'SHOOT',{
+        fontSize:'22px',
+        color:'#ffffff',
+        fontStyle:'bold'
+    }).setOrigin(0.5);
+}
+function moveOstrich(){
     ostrich.body.setVelocity(0);
-
-    if(cursors.left.isDown){
-
-        ostrich.body.setVelocityX(-250);
-
+    if(cursors.left.isDown){ ostrich.body.setVelocityX(-260); }
+    if(cursors.right.isDown){ ostrich.body.setVelocityX(260); }
+    if(cursors.up.isDown){ ostrich.body.setVelocityY(-260); }
+    if(cursors.down.isDown){ ostrich.body.setVelocityY(260); }
+    if(targetX !== null && targetY !== null){
+        let dx = targetX - ostrich.x;
+        let dy = targetY - ostrich.y;
+        let dist = Math.sqrt(dx*dx + dy*dy);
+        if(dist > 8){
+            ostrich.body.setVelocity(dx/dist*260, dy/dist*260);
+        } else {
+            ostrich.body.setVelocity(0);
+        }
     }
-
-    if(cursors.right.isDown){
-
-        ostrich.body.setVelocityX(250);
-
-    }
-
-    if(cursors.up.isDown){
-
-        ostrich.body.setVelocityY(-250);
-
-    }
-
-    if(cursors.down.isDown){
-
-        ostrich.body.setVelocityY(250);
-
-    }
-
-    // UPDATE RAT GRAPHICS
-
+}
+function moveRats(){
     rats.children.iterate(function(rat){
-
-        if(rat.graphics){
-
-            rat.graphics.x = rat.x;
-            rat.graphics.y = rat.y;
-
+        if(!rat || !rat.body){ return; }
+        let nearestEgg = null;
+        let bestDist = 999999;
+        eggs.children.iterate(function(egg){
+            if(!egg || !egg.body){ return; }
+            let d = Phaser.Math.Distance.Between(rat.x,rat.y,egg.x,egg.y);
+            if(d < bestDist){
+                bestDist = d;
+                nearestEgg = egg;
+            }
+        });
+        if(nearestEgg){
+            let dx = nearestEgg.x - rat.x;
+            let dy = nearestEgg.y - rat.y;
+            let dist = Math.sqrt(dx*dx + dy*dy);
+            if(dist > 1){
+                rat.body.setVelocity(dx/dist*rat.speed,dy/dist*rat.speed);
+            }
         }
-
     });
-
-    // UPDATE EGG GRAPHICS
-
-    eggs.children.iterate(function(egg){
-
-        if(egg.graphics){
-
-            egg.graphics.x = egg.x;
-            egg.graphics.y = egg.y;
-
-        }
-
-    });
-
-    // UPDATE BULLETS
-
-    bullets.children.iterate(function(bullet){
-
-        if(!bullet.graphics){
-
-            bullet.graphics = game.scene.scenes[0].add.circle(
-                bullet.x,
-                bullet.y,
-                6,
-                0xffff00
-            );
-
-        }
-
-        bullet.graphics.x = bullet.x;
-        bullet.graphics.y = bullet.y;
-
-    });
-
 }
-
-function collectEgg(ostrich,egg){
-
-    score += 10;
-
-    scoreText.setText('SCORE: ' + score);
-
-    egg.graphics.destroy();
-
-    egg.destroy();
-
-}
-
-function shootRat(bullet,rat){
-
-    score += 25;
-
-    scoreText.setText('SCORE: ' + score);
-
-    if(rat.graphics){
-
-        rat.graphics.destroy();
-
+function shoot(){
+    let now = Date.now();
+    if(now - lastShot < 350){
+        return;
     }
-
-    bullet.graphics.destroy();
-
-    bullet.destroy();
-
-    rat.destroy();
-
+    lastShot = now;
+    let nearestRat = null;
+    let bestDist = 999999;
+    rats.children.iterate(function(rat){
+        if(!rat || !rat.body){ return; }
+        let d = Phaser.Math.Distance.Between(ostrich.x,ostrich.y,rat.x,rat.y);
+        if(d < bestDist){
+            bestDist = d;
+            nearestRat = rat;
+        }
+    });
+    if(!nearestRat){ return; }
+    let bullet = bullets.create(ostrich.x,ostrich.y,'bullet');
+    bullet.body.setCircle(8);
+    let dx = nearestRat.x - ostrich.x;
+    let dy = nearestRat.y - ostrich.y;
+    let dist = Math.sqrt(dx*dx + dy*dy);
+    bullet.body.setVelocity(dx/dist*600,dy/dist*600);
 }
-
+function updateBullets(){
+    bullets.children.iterate(function(bullet){
+        if(!bullet || !bullet.body){ return; }
+        if(
+            bullet.x < -50 ||
+            bullet.x > game.scale.width + 50 ||
+            bullet.y < -50 ||
+            bullet.y > game.scale.height + 50
+        ){
+            bullet.destroy();
+        }
+    });
+}
+function collectEgg(ostrich, egg){
+    score += egg.points;
+    if(egg.eggType === 'egg_danger'){
+        missionText.setText('Danger egg! AORTA Scanner needed!');
+    } else {
+        missionText.setText('Egg secured for the Ostrich Castle!');
+    }
+    scoreText.setText('SCORE: ' + score);
+    egg.destroy();
+}
+function ratEatEgg(rat, egg){
+    if(egg.eggType === 'egg_danger'){
+        missionText.setText('Danger egg! A rat was destroyed!');
+        rat.destroy();
+        egg.destroy();
+        score += 30;
+        scoreText.setText('SCORE: ' + score);
+        return;
+    }
+    missionText.setText('Rat Gang cooked an egg in Paris!');
+    egg.destroy();
+    let newRat = rats.create(
+        rat.x + Phaser.Math.Between(-40,40),
+        rat.y + Phaser.Math.Between(-40,40),
+        'rat'
+    );
+    newRat.setScale(0.65);
+    newRat.body.setCircle(22);
+    newRat.speed = Phaser.Math.Between(70,120);
+}
+function shootRat(bullet, rat){
+    bullet.destroy();
+    rat.destroy();
+    score += 25;
+    scoreText.setText('SCORE: ' + score);
+    missionText.setText('Olllaaa! Eggs in Paris!');
+}
 </script>
-
 </body>
 </html>
+
+После вставки нажми:
+
+Commit changes → Commit changes
+
+Потом подожди 30–60 секунд и обнови игру.
